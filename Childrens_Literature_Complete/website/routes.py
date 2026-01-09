@@ -112,50 +112,50 @@ def create_story():
 def view_story():
     prompt_id = request.args.get('prompt_id')
     prompt = Prompt.query.get(prompt_id)
-    
+
     if not prompt:
         return "Prompt not found", 404
-    
+
     user_id = prompt.user_id
     model_choice = choose_model_for_user(user_id)
 
     parts = []
     parts.append(f"This story is for children aged {prompt.age_range}.")
-    
+
     if prompt.character_name:
         parts.append(f"The main character is named {prompt.character_name}.")
-    
+
     if prompt.character_type:
         parts.append(f"The character is a {prompt.character_type}.")
-    
+
     if prompt.character_gender:
         parts.append(f"The character is {prompt.character_gender}.")
-    
+
     if prompt.character_traits:
         parts.append(f"Character traits: {prompt.character_traits}.")
-    
+
     if prompt.location:
         parts.append(f"Setting: {prompt.location}.")
-    
+
     if prompt.theme:
         parts.append(f"Theme: {prompt.theme}.")
 
     if prompt.character_cultural_background:
         parts.append(f"Culturally inspired by: {prompt.character_cultural_background}.")
-        
+
     if prompt.specific_traditions:
         parts.append(f"Traditions included: {prompt.specific_traditions}.")
-        
 
     final_prompt = " ".join(parts).strip()
     print("FINAL PROMPT:", final_prompt)
-    
-   return render_template(
+
+    return render_template(
         "view_story.html",
         final_prompt=final_prompt,
         prompt=prompt,
         prompt_id=prompt.id,
-        user_id=prompt.user_id
+        user_id=prompt.user_id,
+        model_choice=model_choice
     )
 
 
