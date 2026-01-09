@@ -150,11 +150,14 @@ def view_story():
     final_prompt = " ".join(parts).strip()
     print("FINAL PROMPT:", final_prompt)
     
-    return render_template("view_story.html", 
-                         final_prompt=final_prompt,
-                         prompt=prompt,
-                         model_choice=model_choice,
-                         user_id=prompt.user_id)
+   return render_template(
+        "view_story.html",
+        final_prompt=final_prompt,
+        prompt=prompt,
+        prompt_id=prompt.id,
+        user_id=prompt.user_id
+    )
+
 
 # --------- Generate Story API -------------
 @routes.route("/generate_story_api")
