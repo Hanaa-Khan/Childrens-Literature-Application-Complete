@@ -45,8 +45,8 @@
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const storyPrompt = "{{ final_prompt }}";
-    const userId = "{{ request.args.get('user_id') }}";
-    const promptId = "{{ request.args.get('prompt_id') }}";
+    const userId = "{{ user_id }}";
+    const promptId = "{{ prompt_id }}";
     const modelChoice = "{{ model_choice|default('a') }}";
     const STORY_END_MARKER = "The End.";
     const modelIndicator = document.getElementById("model-indicator");
