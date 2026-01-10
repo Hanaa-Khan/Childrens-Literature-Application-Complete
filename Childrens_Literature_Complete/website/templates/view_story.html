@@ -2,6 +2,10 @@
 
 {% block content %}
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Hidden prompt holder (prevents blocking first paint) -->
+<div id="story-prompt" data-prompt="{{ final_prompt | e }}" hidden></div>
+
 <div class="view-story"> 
 
     <!-- Loading Screen -->
@@ -17,183 +21,89 @@
     <div id="story-content" style="display:none;">
         <div style="text-align: center; margin-bottom: 30px;">
             <h1>Your Story</h1>
-            
-            <!-- Model Indicator Badge -->
-            <div id="model-badge" style="margin: 10px 0 20px 0;">
-                <span id="model-tag" style="background: #007bff; color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.9em;"></span>
-            </div>
 
+            <div id="model-badge" style="margin: 10px 0 20px 0;">
+                <span id="model-tag"
+                      style="background: #007bff; color: white; padding: 5px 15px;
+                             border-radius: 20px; font-size: 0.9em;">
+                </span>
+            </div>
         </div>
-        
 
         <div id="story-sections" style="max-width: 900px; margin: 0 auto;"></div>
-        
+
         <div id="feedback-form-container" style="max-width: 700px; margin: 50px auto; text-align:center;">
             <h1>Please complete the feedback form!</h1>
-            <div id="feedback-form">
-            </div>
+            <div id="feedback-form"></div>
         </div>
-        
-          <!-- Download PDF Button -->
-        <button onclick="printStory()" 
-                   style="background: #28a745; color: white; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer; font-size: 16px; margin-top: 10px;">
-                   📄 Download PDF
+
+        <button onclick="printStory()"
+                style="background: #28a745; color: white; padding: 10px 20px;
+                       border-radius: 5px; border: none; cursor: pointer;
+                       font-size: 16px; margin-top: 10px;">
+            📄 Download PDF
         </button>
     </div>
 </div>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-    const storyPrompt = "{{ final_prompt }}";
     const userId = "{{ user_id }}";
     const promptId = "{{ prompt_id }}";
     const modelChoice = "{{ model_choice|default('a') }}";
-    const STORY_END_MARKER = "The End.";
+
     const modelIndicator = document.getElementById("model-indicator");
-    if (modelChoice === 'b') {
-        modelIndicator.textContent = "⭐"; // Using Symbol to represent Model B without the user knowledge
-    } else {
-        modelIndicator.textContent = "💜"; // Using Symbol to represent Model A without the user knowledge
-    }
+    modelIndicator.textContent = modelChoice === "b" ? "⭐" : "💜";
 
-    fetch(`/generate_story_api?prompt=${encodeURIComponent(storyPrompt)}&user_id=${userId}&prompt_id=${promptId}&model=${modelChoice}`)
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            return response.json();
-        })
-        .then(data => {
-            document.getElementById("loading-screen").style.display = "none";
-            document.getElementById("story-content").style.display = "block";
+    // Force loader to paint BEFORE heavy work
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
 
-            const modelTag = document.getElementById("model-tag");
-            if (data.model_used === 'b') {
-                modelTag.textContent = "⭐";
-            } else {
-                modelTag.textContent = "💜";
-            }
+            const storyPrompt = document
+                .getElementById("story-prompt")
+                .dataset.prompt;
 
-            displayStoryWithImages(data.story, data.images || []);
-            const feedbackContainer = document.getElementById("feedback-form");
-            let formUrl = "";
-            if (data.model_used === 'b') {
-                formUrl = "https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=Ij1-N6FOLUKwrY_MiUBrnrThPCl7siZNhmqToswXzsJUREFFQVRGREVXTkExTVo4SVBFMlgxRUZUOC4u&embed=true";
-            } else {
-                formUrl = "https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=Ij1-N6FOLUKwrY_MiUBrnrThPCl7siZNhmqToswXzsJUNjdXRVRVMjA3WkUxWTVORFRGWUFEUDRLTi4u&embed=true";
-            }
+            fetch(`/generate_story_api?prompt=${encodeURIComponent(storyPrompt)}&user_id=${userId}&prompt_id=${promptId}`)
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return res.json();
+                })
+                .then(data => {
+                    document.getElementById("loading-screen").style.display = "none";
+                    document.getElementById("story-content").style.display = "block";
 
-            feedbackContainer.innerHTML = `
-                <iframe src="${formUrl}" 
-                    width="100%" 
-                    height="800px" 
-                    style="border:none; max-width:100%; max-height:100vh;" 
-                    frameborder="0" 
-                    allowfullscreen>
-                </iframe>
-            `;
-        })
-        .catch(err => {
-            console.error("Error:", err);
-            document.getElementById("loading-screen").innerHTML = `
-                <div style="background: #f8d7da; color: #721c24; padding: 30px; border-radius: 10px; max-width: 600px; margin: 0 auto;">
-                    <h2 style="color: #721c24;">⚠️ Something went wrong</h2>
-                    <p>There was an error generating your story.</p>
-                    <div style="margin-top: 20px;">
-                        <button onclick="window.location.reload()" style="background: #dc3545; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">Try Again</button>
-                        <a href="/create_story?user_id=${userId}" style="background: #6c757d; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none;">Go Back</a>
-                    </div>
-                </div>
-            `;
+                    document.getElementById("model-tag").textContent =
+                        data.model_used === "b" ? "⭐" : "💜";
+
+                    displayStoryWithImages(data.story, data.images || []);
+
+                    const feedbackContainer = document.getElementById("feedback-form");
+                    const formUrl = data.model_used === "b"
+                        ? "https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=Ij1-N6FOLUKwrY_MiUBrnrThPCl7siZNhmqToswXzsJUREFFQVRGREVXTkExTVo4SVBFMlgxRUZUOC4u&embed=true"
+                        : "https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=Ij1-N6FOLUKwrY_MiUBrnrThPCl7siZNhmqToswXzsJUNjdXRVRVMjA3WkUxWTVORFRGWUFEUDRLTi4u&embed=true";
+
+                    feedbackContainer.innerHTML = `
+                        <iframe src="${formUrl}" width="100%" height="800px"
+                                style="border:none; max-width:100%; max-height:100vh;"
+                                frameborder="0" allowfullscreen>
+                        </iframe>
+                    `;
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById("loading-screen").innerHTML = `
+                        <div style="background:#f8d7da;color:#721c24;padding:30px;
+                                    border-radius:10px;max-width:600px;margin:0 auto;">
+                            <h2>⚠️ Something went wrong</h2>
+                            <p>There was an error generating your story.</p>
+                            <button onclick="window.location.reload()">Try Again</button>
+                        </div>
+                    `;
+                });
         });
-});
-
-function displayStoryWithImages(storyText, images) {
-    const container = document.getElementById("story-sections");
-
-    if (!storyText || storyText.trim().length === 0) {
-        container.innerHTML = `
-            <div style="text-align: center; padding: 40px; color: #666;">
-                <h3>No story was generated</h3>
-                <p>Please try creating a new story.</p>
-            </div>
-        `;
-        return;
-    }
-
-    storyText = storyText.trim();
-    if (!storyText.endsWith("The End.")) {
-        storyText += "\n\nThe End.";
-    }
-
-    const paragraphs = storyText
-        .split(/\n\s*\n/)
-        .map(p => p.trim())
-        .filter(p => p.length > 0);
-
-    let storyParts = ["", "", ""];
-    if (paragraphs.length >= 3) {
-        const third = Math.floor(paragraphs.length / 3);
-        storyParts[0] = paragraphs.slice(0, third).join("\n\n");
-        storyParts[1] = paragraphs.slice(third, 2 * third).join("\n\n");
-        storyParts[2] = paragraphs.slice(2 * third).join("\n\n");
-    } else {
-
-        storyParts = paragraphs.concat(["", "", ""]).slice(0, 3);
-    }
-
-    if (!storyParts[2].includes("The End.")) {
-        storyParts[2] = storyParts[2].trim() + "\n\nThe End.";
-    }
-
-    container.innerHTML = "";
-
-    const sections = [
-        { title: "Beginning", icon: "1", iconClass: "beginning-icon" },
-        { title: "Middle", icon: "2", iconClass: "middle-icon" },
-        { title: "End", icon: "3", iconClass: "end-icon" }
-    ];
-
-    sections.forEach((section, index) => {
-        const text = storyParts[index].trim();
-        if (!text) return;
-
-        const imageUrl = images[index] || "/static/fallback_image.png";
-        const isImageLeft = index % 2 === 0;
-
-        const sectionDiv = document.createElement("div");
-        sectionDiv.className = "story-section";
-
-        const imageHtml = `
-            <div class="image-container">
-                <img src="${imageUrl}" alt="${section.title}" class="story-image">
-                <div class="image-caption">${section.title} of the story</div>
-            </div>
-        `;
-
-        const textHtml = `
-            <div class="story-text-container">
-                <div class="section-header">
-                    <div class="section-icon ${section.iconClass}">${section.icon}</div>
-                    <h3 class="section-title">${section.title}</h3>
-                </div>
-                <div class="story-text">${text}</div>
-            </div>
-        `;
-
-        sectionDiv.innerHTML = isImageLeft ? imageHtml + textHtml : textHtml + imageHtml;
-        container.appendChild(sectionDiv);
     });
-}
-
-
-function printStory() {
-    // Hide the feedback form
-    document.getElementById('feedback-form-container').style.display = 'none';
-    setTimeout(() => {
-        window.print();
-        setTimeout(() => {
-            document.getElementById('feedback-form-container').style.display = 'block';
-        }, 100);
-    }, 100);
-}
+});
 </script>
+
 {% endblock %}
+
