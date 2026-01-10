@@ -3,7 +3,7 @@
 {% block content %}
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Hidden prompt holder (prevents blocking first paint) -->
+<!-- Hidden prompt holder -->
 <div id="story-prompt" data-prompt="{{ final_prompt | e }}" hidden></div>
 
 <div class="view-story"> 
@@ -22,25 +22,25 @@
         <div style="text-align: center; margin-bottom: 30px;">
             <h1>Your Story</h1>
 
-            <div id="model-badge" style="margin: 10px 0 20px 0;">
+            <div id="model-badge">
                 <span id="model-tag"
-                      style="background: #007bff; color: white; padding: 5px 15px;
-                             border-radius: 20px; font-size: 0.9em;">
+                      style="background:#007bff;color:white;padding:5px 15px;
+                             border-radius:20px;font-size:0.9em;">
                 </span>
             </div>
         </div>
 
-        <div id="story-sections" style="max-width: 900px; margin: 0 auto;"></div>
+        <div id="story-sections" style="max-width:900px;margin:0 auto;"></div>
 
-        <div id="feedback-form-container" style="max-width: 700px; margin: 50px auto; text-align:center;">
+        <div id="feedback-form-container" style="max-width:700px;margin:50px auto;text-align:center;">
             <h1>Please complete the feedback form!</h1>
             <div id="feedback-form"></div>
         </div>
 
         <button onclick="printStory()"
-                style="background: #28a745; color: white; padding: 10px 20px;
-                       border-radius: 5px; border: none; cursor: pointer;
-                       font-size: 16px; margin-top: 10px;">
+                style="background:#28a745;color:white;padding:10px 20px;
+                       border-radius:5px;border:none;cursor:pointer;
+                       font-size:16px;margin-top:10px;">
             📄 Download PDF
         </button>
     </div>
@@ -52,58 +52,80 @@ document.addEventListener("DOMContentLoaded", () => {
     const promptId = "{{ prompt_id }}";
     const modelChoice = "{{ model_choice|default('a') }}";
 
-    const modelIndicator = document.getElementById("model-indicator");
-    modelIndicator.textContent = modelChoice === "b" ? "⭐" : "💜";
+    document.getElementById("model-indicator").textContent =
+        modelChoice === "b" ? "⭐" : "💜";
 
-    // Force loader to paint BEFORE heavy work
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
+    /* FORCE FIRST PAINT */
+    setTimeout(() => {
+        const storyPrompt = document
+            .getElementById("story-prompt")
+            .dataset.prompt;
 
-            const storyPrompt = document
-                .getElementById("story-prompt")
-                .dataset.prompt;
+        fetch(`/generate_story_api?prompt=${encodeURIComponent(storyPrompt)}&user_id=${userId}&prompt_id=${promptId}`)
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.json();
+            })
+            .then(data => {
+                document.getElementById("loading-screen").style.display = "none";
+                document.getElementById("story-content").style.display = "block";
 
-            fetch(`/generate_story_api?prompt=${encodeURIComponent(storyPrompt)}&user_id=${userId}&prompt_id=${promptId}`)
-                .then(res => {
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    return res.json();
-                })
-                .then(data => {
-                    document.getElementById("loading-screen").style.display = "none";
-                    document.getElementById("story-content").style.display = "block";
+                document.getElementById("model-tag").textContent =
+                    data.model_used === "b" ? "⭐" : "💜";
 
-                    document.getElementById("model-tag").textContent =
-                        data.model_used === "b" ? "⭐" : "💜";
+                displayStoryWithImages(data.story, data.images || []);
 
-                    displayStoryWithImages(data.story, data.images || []);
+                const formUrl = data.model_used === "b"
+                    ? "https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=Ij1-N6FOLUKwrY_MiUBrnrThPCl7siZNhmqToswXzsJUREFFQVRGREVXTkExTVo4SVBFMlgxRUZUOC4u&embed=true"
+                    : "https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=Ij1-N6FOLUKwrY_MiUBrnrThPCl7siZNhmqToswXzsJUNjdXRVRVMjA3WkUxWTVORFRGWUFEUDRLTi4u&embed=true";
 
-                    const feedbackContainer = document.getElementById("feedback-form");
-                    const formUrl = data.model_used === "b"
-                        ? "https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=Ij1-N6FOLUKwrY_MiUBrnrThPCl7siZNhmqToswXzsJUREFFQVRGREVXTkExTVo4SVBFMlgxRUZUOC4u&embed=true"
-                        : "https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=Ij1-N6FOLUKwrY_MiUBrnrThPCl7siZNhmqToswXzsJUNjdXRVRVMjA3WkUxWTVORFRGWUFEUDRLTi4u&embed=true";
-
-                    feedbackContainer.innerHTML = `
-                        <iframe src="${formUrl}" width="100%" height="800px"
-                                style="border:none; max-width:100%; max-height:100vh;"
-                                frameborder="0" allowfullscreen>
-                        </iframe>
-                    `;
-                })
-                .catch(err => {
-                    console.error(err);
-                    document.getElementById("loading-screen").innerHTML = `
-                        <div style="background:#f8d7da;color:#721c24;padding:30px;
-                                    border-radius:10px;max-width:600px;margin:0 auto;">
-                            <h2>⚠️ Something went wrong</h2>
-                            <p>There was an error generating your story.</p>
-                            <button onclick="window.location.reload()">Try Again</button>
-                        </div>
-                    `;
-                });
-        });
-    });
+                document.getElementById("feedback-form").innerHTML = `
+                    <iframe src="${formUrl}" width="100%" height="800px"
+                            style="border:none;" allowfullscreen></iframe>
+                `;
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById("loading-screen").innerHTML =
+                    "<h2>⚠️ Error generating story</h2>";
+            });
+    }, 0);
 });
+
+/* RESTORED FUNCTION */
+function displayStoryWithImages(storyText, images) {
+    const container = document.getElementById("story-sections");
+    container.innerHTML = "";
+
+    if (!storyText) {
+        container.innerHTML = "<p>No story generated.</p>";
+        return;
+    }
+
+    const paragraphs = storyText.split(/\n\s*\n/).filter(Boolean);
+    const third = Math.ceil(paragraphs.length / 3);
+    const parts = [
+        paragraphs.slice(0, third).join("\n\n"),
+        paragraphs.slice(third, third * 2).join("\n\n"),
+        paragraphs.slice(third * 2).join("\n\n")
+    ];
+
+    ["Beginning", "Middle", "End"].forEach((title, i) => {
+        const div = document.createElement("div");
+        div.innerHTML = `
+            <h3>${title}</h3>
+            <img src="${images[i] || '/static/fallback_image.png'}" style="max-width:100%;">
+            <p>${parts[i] || ""}</p>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function printStory() {
+    document.getElementById("feedback-form-container").style.display = "none";
+    window.print();
+    document.getElementById("feedback-form-container").style.display = "block";
+}
 </script>
 
 {% endblock %}
-
