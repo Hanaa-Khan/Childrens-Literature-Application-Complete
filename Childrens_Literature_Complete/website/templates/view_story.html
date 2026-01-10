@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Show model symbol at top loader
     const modelIndicator = document.getElementById("model-indicator");
-    modelIndicator.textContent = modelChoice === 'b' ? "⭐ Model B" : "💜 Model A";
+    modelIndicator.textContent = modelChoice === 'b' ? "⭐" : "💜";
 
     // Ensure loader renders before fetch
     requestAnimationFrame(() => {
@@ -66,7 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 // Show model badge at top of story
                 const modelTag = document.getElementById("model-tag");
-                modelTag.textContent = data.model_used === 'b' ? "⭐ Model B" : "💜 Model A";
+                modelTag.textContent = data.model_used === 'b' ? "⭐" : "💜";
 
                 displayStoryWithImages(data.story, data.images || []);
                 loadFeedbackForm(data.model_used);
